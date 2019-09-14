@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using MarchingCubes.Examples.DensityFunctions;
 using UnityEngine;
 
@@ -12,28 +11,27 @@ namespace MarchingCubes.Examples
         [SerializeField] private GameObject chunkPrefab;
 
         [Header("Marching Cubes settings")]
-        [SerializeField] private float isolevel = 0.5F;
+        [SerializeField] private float isolevel = 0.5f;
         [SerializeField] private DensityFunction densityFunction;
 
         [Header("Player settings")]
-        [SerializeField] private int renderDistance = 40;
+        [SerializeField] private int renderDistance = 4;
         [SerializeField] private Transform player;
 
         [Header("Other settings")]
-        [SerializeField] private bool useThreading;
+        [SerializeField] private bool useThreading = true;
+        [SerializeField] private float voxelScale = 1;
 
         private Dictionary<Vector3Int, Chunk> _chunks;
-        private Vector3 _startPos;
+        private Vector3 _startCoordinate;
         private Queue<Chunk> _availableChunks;
-        private int _renderDistanceChunkCount;
 
         public DensityFunction DensityFunction { get; private set; }
         public bool UseThreading { get => useThreading; private set => useThreading = value; }
+        public float VoxelScale { get => voxelScale; private set => voxelScale = value; }
 
         private void Awake()
         {            
-            _renderDistanceChunkCount = Mathf.CeilToInt(renderDistance / (float)chunkSize);
-
             DensityFunction = densityFunction;
             _availableChunks = new Queue<Chunk>();
             _chunks = new Dictionary<Vector3Int, Chunk>();
@@ -45,55 +43,57 @@ namespace MarchingCubes.Examples
         
         private void Start()
         {
-            GenerateNewTerrain(player.position);
+            Vector3Int playerCoordinate = CoordinateFromWorldPosition(player.position);
+            GenerateNewTerrain(playerCoordinate);
         }
 
         private void Update()
         {
-            if (Mathf.Abs(player.position.x - _startPos.x) >= chunkSize ||
-                Mathf.Abs(player.position.y - _startPos.y) >= chunkSize ||
-                Mathf.Abs(player.position.z - _startPos.z) >= chunkSize)
+            Vector3Int playerCoordinate = CoordinateFromWorldPosition(player.position);
+
+            if (Mathf.Abs(playerCoordinate.x - _startCoordinate.x) >= 1 ||
+                Mathf.Abs(playerCoordinate.y - _startCoordinate.y) >= 1 ||
+                Mathf.Abs(playerCoordinate.z - _startCoordinate.z) >= 1)
             {
-                GenerateNewTerrain(player.position);
+                GenerateNewTerrain(playerCoordinate);
             }
         }
 
-        private void GenerateNewTerrain(Vector3 playerPos)
+        private void GenerateNewTerrain(Vector3Int playerCoordinate)
         {
-            Vector3Int playerChunkPosition = playerPos.FloorToNearestX(chunkSize);
-            
             // TODO: Initialize this only once
-            var newTerrain = new Dictionary<Vector3Int, Chunk>((int)Mathf.Pow(_renderDistanceChunkCount * 2 + 1, 3));
+            var newTerrain = new Dictionary<Vector3Int, Chunk>((int)Mathf.Pow(renderDistance * 2 + 1, 3));
 
-            for (int x = -_renderDistanceChunkCount; x <= _renderDistanceChunkCount; x++)
+            for (int x = -renderDistance; x <= renderDistance; x++)
             {
-                for (int y = -_renderDistanceChunkCount; y < _renderDistanceChunkCount; y++)
+                for (int y = -renderDistance; y <= renderDistance; y++)
                 {
-                    for (int z = -_renderDistanceChunkCount; z < _renderDistanceChunkCount; z++)
+                    for (int z = -renderDistance; z <= renderDistance; z++)
                     {
-                        var chunkPosition = playerChunkPosition + new Vector3Int(x * chunkSize, y * chunkSize, z * chunkSize);
-                        if (!_chunks.TryGetValue(chunkPosition, out Chunk chunk))
+                        Vector3Int chunkCoordinate = playerCoordinate + new Vector3Int(x, y, z);
+                        bool chunkExists = _chunks.TryGetValue(chunkCoordinate, out Chunk chunk);
+                        
+                        if (!chunkExists)
                         {
                             if (_availableChunks.Count > 0)
                             {
                                 chunk = _availableChunks.Dequeue();
                                 chunk.gameObject.SetActive(true);
-                                chunk.transform.position = chunkPosition;
-                                chunk.SetPosition(chunkPosition);
+                                chunk.transform.position = (Vector3)chunkCoordinate * chunkSize * voxelScale;
+                                chunk.SetCoordinates(chunkCoordinate);
                             }
                             else
                             {
-                                chunk = CreateChunk(chunkPosition);
+                                chunk = CreateChunk(chunkCoordinate);
                             }
                         }
 
-                        newTerrain.Add(chunkPosition, chunk);
+                        newTerrain.Add(chunkCoordinate, chunk);
                     }
                 }
             }
 
-            var oldKeys = _chunks.Keys.ToList();
-            foreach (var key in oldKeys)
+            foreach (var key in _chunks.Keys)
             {
                 if (newTerrain.ContainsKey(key)) { continue; }
                 
@@ -106,7 +106,18 @@ namespace MarchingCubes.Examples
 
             _chunks = newTerrain;
 
-            _startPos = playerPos;
+            _startCoordinate = playerCoordinate;
+        }
+
+        private Vector3Int CoordinateFromWorldPosition(Vector3 worldPosition)
+        {
+            var coordinate = worldPosition.FloorToNearestX(chunkSize * voxelScale) / (chunkSize * voxelScale);
+
+            int coordX = Mathf.FloorToInt(coordinate.x);
+            int coordY = Mathf.FloorToInt(coordinate.y);
+            int coordZ = Mathf.FloorToInt(coordinate.z);
+
+            return new Vector3Int(coordX, coordY, coordZ);
         }
 
         private Chunk GetChunk(int x, int y, int z)
@@ -145,11 +156,12 @@ namespace MarchingCubes.Examples
             }
         }
 
-        private Chunk CreateChunk(Vector3Int chunkPosition)
+        private Chunk CreateChunk(Vector3Int chunkCoordinate)
         {
-            var chunk = Instantiate(chunkPrefab, chunkPosition, Quaternion.identity).GetComponent<Chunk>();
-            chunk.Initialize(this, chunkSize, isolevel, chunkPosition);
-            _chunks.Add(chunkPosition, chunk);
+            var chunk = Instantiate(chunkPrefab, (Vector3)chunkCoordinate * chunkSize * voxelScale, Quaternion.identity, transform).GetComponent<Chunk>();
+
+            chunk.Initialize(this, chunkSize, isolevel, chunkCoordinate);
+            _chunks.Add(chunkCoordinate, chunk);
 
             return chunk;
         }

@@ -10,7 +10,7 @@ namespace MarchingCubes.Examples
     [RequireComponent(typeof(MeshRenderer), typeof(MeshFilter))]
     public class Chunk : MonoBehaviour
     {
-        private Vector3Int _position;
+        private Vector3Int _coordinate;
         private bool _isDirty;
         private float _isolevel;
         private int _chunkSize;
@@ -38,7 +38,15 @@ namespace MarchingCubes.Examples
 
         private void OnDestroy()
         {
+            if(!densityJobHandle.IsCompleted)
+                densityJobHandle.Complete();
+
             densities.Dispose();
+        }
+
+        private void OnDisable() {
+            if(!densityJobHandle.IsCompleted)
+                densityJobHandle.Complete();
         }
 
         private void Update()
@@ -47,7 +55,7 @@ namespace MarchingCubes.Examples
             Generate();
         }
 
-        public void Initialize(World world, int chunkSize, float isolevel, Vector3Int position)
+        public void Initialize(World world, int chunkSize, float isolevel, Vector3Int coordinate)
         {
             _world = world;
             _isolevel = isolevel;
@@ -56,15 +64,15 @@ namespace MarchingCubes.Examples
             _densityField = new ValueGrid<float>(chunkSize + 1, chunkSize + 1, chunkSize + 1);
             densities = new NativeArray<float>((_chunkSize + 1) * (_chunkSize + 1) * (_chunkSize + 1), Allocator.Persistent);
 
-            _meshDataDelegate = () => MarchingCubes.CreateMeshData(_densityField, isolevel);
+            _meshDataDelegate = () => MarchingCubes.CreateMeshData(_densityField, isolevel, _world.VoxelScale);
 
-            SetPosition(position);
+            SetCoordinates(coordinate);
         }
 
-        public void SetPosition(Vector3Int position)
+        public void SetCoordinates(Vector3Int coordinate)
         {
-            _position = position;
-            name = $"Chunk_{position.x.ToString()}_{position.y.ToString()}_{position.z.ToString()}";
+            _coordinate = coordinate;
+            name = $"Chunk_{coordinate.x.ToString()}_{coordinate.y.ToString()}_{coordinate.z.ToString()}";
 
             PopulateDensities();
 
@@ -73,16 +81,21 @@ namespace MarchingCubes.Examples
 
         private void PopulateDensities()
         {
+            Vector3Int offset = _coordinate * _chunkSize;
+            
             if (_world.UseThreading)
             {
                 densityCalculationJob = new DensityCalculationJob
                 {
                     densities = densities,
-                    offsetX = _position.x,
-                    offsetY = _position.y,
-                    offsetZ = _position.z,
+                    offsetX = offset.x,
+                    offsetY = offset.y,
+                    offsetZ = offset.z,
                     chunkSize = _chunkSize + 1, // +1 because chunkSize is the amount of "voxels", and that +1 is the amount of density points
                 };
+
+                if(!densityJobHandle.IsCompleted)
+                    densityJobHandle.Complete();
 
                 densityJobHandle = densityCalculationJob.Schedule(densities.Length, 256);
 
@@ -90,7 +103,7 @@ namespace MarchingCubes.Examples
             }
             else
             {
-                _densityField.Populate(_world.DensityFunction.CalculateDensity, _position.x, _position.y, _position.z);
+                _densityField.Populate(_world.DensityFunction.CalculateDensity, offset.x, offset.y, offset.z);
             }
         }
 
@@ -115,7 +128,7 @@ namespace MarchingCubes.Examples
             }
             else
             {
-                meshData = MarchingCubes.CreateMeshData(_densityField, _isolevel);
+                meshData = MarchingCubes.CreateMeshData(_densityField, _isolevel, _world.VoxelScale);
             }
 
             var (vertices, triangles) = meshData;

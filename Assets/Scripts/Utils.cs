@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace MarchingCubes
 {
@@ -7,6 +8,11 @@ namespace MarchingCubes
         public static int FloorToNearestX(this float n, int x)
         {
             return Mathf.FloorToInt(n / x) * x;
+        }
+
+        public static float FloorToNearestX(this float n, float x)
+        {
+            return Mathf.Floor(n / x) * x;
         }
 
         public static Vector3 Abs(this Vector3 n)
@@ -32,6 +38,15 @@ namespace MarchingCubes
             return FloorToNearestX(new Vector3(n.x, n.y, n.z), x);
         }
 
+        public static Vector3 FloorToNearestX(this Vector3 n, float x)
+        {
+            var flooredX = FloorToNearestX(n.x, x);
+            var flooredY = FloorToNearestX(n.y, x);
+            var flooredZ = FloorToNearestX(n.z, x);
+
+            return new Vector3(flooredX, flooredY, flooredZ);
+        }
+
         public static Vector3Int Mod(this Vector3Int n, int x)
         {
             var modX = Mod(n.x, x);
@@ -49,6 +64,13 @@ namespace MarchingCubes
         public static float Map(this float value, float x1, float y1, float x2, float y2)
         {
             return (value - x1) / (y1 - x1) * (y2 - x2) + x2;
+        }
+
+        public static Vector3Int Floor(Vector3 playerFloatCoordinate)
+        {
+            return new Vector3Int(Mathf.FloorToInt(playerFloatCoordinate.x),
+                                  Mathf.FloorToInt(playerFloatCoordinate.y),
+                                  Mathf.FloorToInt(playerFloatCoordinate.z));
         }
     }
 }

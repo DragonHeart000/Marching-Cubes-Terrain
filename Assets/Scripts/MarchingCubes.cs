@@ -52,7 +52,7 @@ namespace MarchingCubes
             return cubeIndex;
         }
 
-        public static MeshData CreateMeshData(ValueGrid<float> densityField, float isolevel)
+        public static MeshData CreateMeshData(ValueGrid<float> densityField, float isolevel, float voxelScale)
         {
             var vertices = new List<Vector3>();
 
@@ -83,7 +83,7 @@ namespace MarchingCubes
                         int[] row = LookupTables.TriangleTable[cubeIndex];
                         for (int i = 0; i < row.Length; i++)
                         {
-                            vertices.Add(vertexList[row[i]]);
+                            vertices.Add(vertexList[row[i]] * voxelScale);
                         }
                     }
                     originIndex++;
