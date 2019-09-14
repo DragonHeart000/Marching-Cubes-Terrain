@@ -645,4 +645,4 @@ MonoBehaviour:
   renderDistance: 4
   player: {fileID: 534669905}
   useThreading: 1
-  voxelScale: 0.5
+  voxelScale: 1
