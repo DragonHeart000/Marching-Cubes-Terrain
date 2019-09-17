@@ -1,15 +1,9 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace MarchingCubes
 {
     public static class Utils
     {
-        public static int FloorToNearestX(this float n, int x)
-        {
-            return Mathf.FloorToInt(n / x) * x;
-        }
-
         public static float FloorToNearestX(this float n, float x)
         {
             return Mathf.Floor(n / x) * x;
@@ -23,21 +17,7 @@ namespace MarchingCubes
 
             return new Vector3(x, y, z);
         }
-
-        public static Vector3Int FloorToNearestX(this Vector3 n, int x)
-        {
-            var flooredX = FloorToNearestX(n.x, x);
-            var flooredY = FloorToNearestX(n.y, x);
-            var flooredZ = FloorToNearestX(n.z, x);
-
-            return new Vector3Int(flooredX, flooredY, flooredZ);
-        }
-
-        public static Vector3Int FloorToNearestX(this Vector3Int n, int x)
-        {
-            return FloorToNearestX(new Vector3(n.x, n.y, n.z), x);
-        }
-
+        
         public static Vector3 FloorToNearestX(this Vector3 n, float x)
         {
             var flooredX = FloorToNearestX(n.x, x);
@@ -47,16 +27,39 @@ namespace MarchingCubes
             return new Vector3(flooredX, flooredY, flooredZ);
         }
 
-        public static Vector3Int Mod(this Vector3Int n, int x)
+        public static Vector3Int Floor(this Vector3 n)
+        {
+            var flooredX = Mathf.FloorToInt(n.x);
+            var flooredY = Mathf.FloorToInt(n.y);
+            var flooredZ = Mathf.FloorToInt(n.z);
+
+            return new Vector3Int(flooredX, flooredY, flooredZ);
+        }
+
+        public static float RoundToNearestX(this float n, float x)
+        {
+            return Mathf.Round(n / x) * x;
+        }
+
+        public static Vector3 RoundToNearestX(this Vector3 n, float x)
+        {
+            var roundedX = n.x.RoundToNearestX(x);
+            var roundedY = n.y.RoundToNearestX(x);
+            var roundedZ = n.z.RoundToNearestX(x);
+
+            return new Vector3(roundedX, roundedY, roundedZ);
+        }
+
+        public static Vector3 Mod(this Vector3 n, float x)
         {
             var modX = Mod(n.x, x);
             var modY = Mod(n.y, x);
             var modZ = Mod(n.z, x);
 
-            return new Vector3Int(modX, modY, modZ);
+            return new Vector3(modX, modY, modZ);
         }
 
-        public static int Mod(this int n, int x)
+        public static float Mod(this float n, float x)
         {
             return (n % x + x) % x;
         }
@@ -64,13 +67,6 @@ namespace MarchingCubes
         public static float Map(this float value, float x1, float y1, float x2, float y2)
         {
             return (value - x1) / (y1 - x1) * (y2 - x2) + x2;
-        }
-
-        public static Vector3Int Floor(Vector3 playerFloatCoordinate)
-        {
-            return new Vector3Int(Mathf.FloorToInt(playerFloatCoordinate.x),
-                                  Mathf.FloorToInt(playerFloatCoordinate.y),
-                                  Mathf.FloorToInt(playerFloatCoordinate.z));
         }
     }
 }

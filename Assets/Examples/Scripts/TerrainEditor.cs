@@ -67,10 +67,8 @@ namespace MarchingCubes.Examples
         {
             int buildModifier = addTerrain ? 1 : -1;
 
-            int hitX = Mathf.RoundToInt(point.x);
-            int hitY = Mathf.RoundToInt(point.y);
-            int hitZ = Mathf.RoundToInt(point.z);
-            
+            Vector3 hitDensityPoint = point.RoundToNearestX(world.VoxelScale);
+
             int intRange = Mathf.CeilToInt(range);
 
             for (int x = -intRange; x <= intRange; x++)
@@ -79,24 +77,18 @@ namespace MarchingCubes.Examples
                 {
                     for (int z = -intRange; z <= intRange; z++)
                     {
-                        int offsetX = hitX - x;
-                        int offsetY = hitY - y;
-                        int offsetZ = hitZ - z;
-                        
-                        var offsetPoint = new Vector3Int(offsetX, offsetY, offsetZ);
-                        float distance = Vector3.Distance(offsetPoint, point);
-                        if (distance > range)
-                        {
-                            continue;
-                        }
+                        Vector3 offset = new Vector3(x, y, z);
+                        Vector3 densityWorldPosition = hitDensityPoint + offset * world.VoxelScale;
+
+                        float distance = Vector3.Distance(densityWorldPosition, point);
+                        if (distance > range) { continue; }
 
                         float modificationAmount = force / distance * forceOverDistance.Evaluate(1 - distance.Map(0, force, 0, 1)) * buildModifier;
 
-                        float oldDensity = world.GetDensity(offsetX, offsetY, offsetZ);
+                        float oldDensity = world.GetDensity(densityWorldPosition);
                         float newDensity = Mathf.Clamp01(oldDensity - modificationAmount);
 
-
-                        world.SetDensity(newDensity, offsetPoint);
+                        world.SetDensity(newDensity, densityWorldPosition);
                     }
                 }
             }

@@ -31,7 +31,7 @@ namespace MarchingCubes.Examples
         public float VoxelScale { get => voxelScale; private set => voxelScale = value; }
 
         private void Awake()
-        {            
+        {
             DensityFunction = densityFunction;
             _availableChunks = new Queue<Chunk>();
             _chunks = new Dictionary<Vector3Int, Chunk>();
@@ -40,7 +40,7 @@ namespace MarchingCubes.Examples
                 initializable.Initialize();
             }
         }
-        
+
         private void Start()
         {
             Vector3Int playerCoordinate = CoordinateFromWorldPosition(player.position);
@@ -72,7 +72,7 @@ namespace MarchingCubes.Examples
                     {
                         Vector3Int chunkCoordinate = playerCoordinate + new Vector3Int(x, y, z);
                         bool chunkExists = _chunks.TryGetValue(chunkCoordinate, out Chunk chunk);
-                        
+
                         if (!chunkExists)
                         {
                             if (_availableChunks.Count > 0)
@@ -93,13 +93,13 @@ namespace MarchingCubes.Examples
                 }
             }
 
-            foreach (var key in _chunks.Keys)
+            foreach (var pair in _chunks)
             {
-                if (newTerrain.ContainsKey(key)) { continue; }
-                
-                Chunk chunk = _chunks[key];
+                if (newTerrain.ContainsKey(pair.Key)) { continue; }
+
+                Chunk chunk = pair.Value;
                 if (_availableChunks.Contains(chunk)) { continue; }
-                
+
                 _availableChunks.Enqueue(chunk);
                 chunk.gameObject.SetActive(false);
             }
@@ -120,37 +120,35 @@ namespace MarchingCubes.Examples
             return new Vector3Int(coordX, coordY, coordZ);
         }
 
-        private Chunk GetChunk(int x, int y, int z)
+        public Chunk GetChunk(Vector3 worldPosition)
         {
-            int newX = Utils.FloorToNearestX(x, chunkSize);
-            int newY = Utils.FloorToNearestX(y, chunkSize);
-            int newZ = Utils.FloorToNearestX(z, chunkSize);
-
-            Vector3Int key = new Vector3Int(newX, newY, newZ);
-            return _chunks[key];
+            return _chunks[CoordinateFromWorldPosition(worldPosition)];
         }
 
-        public float GetDensity(int x, int y, int z)
+        public float GetDensity(Vector3 worldPosition)
         {
-            Chunk chunk = GetChunk(x, y, z);
-            if (chunk == null)
-            {
-                return 0;
-            }
+            Vector3 densityWorldPosition = worldPosition.RoundToNearestX(voxelScale);
+            Vector3 chunkPos = densityWorldPosition.FloorToNearestX(chunkSize * voxelScale);
 
-            float density = chunk.GetDensity(x.Mod(chunkSize),
-                                             y.Mod(chunkSize),
-                                             z.Mod(chunkSize));
-            return density;
+            Chunk chunk = GetChunk(chunkPos);
+
+            Vector3Int localPos = ((densityWorldPosition - chunk.transform.position) / voxelScale).Mod(chunkSize + 1).Floor();
+
+            return chunk.GetDensity(localPos.x, localPos.y, localPos.z);
         }
 
-        public void SetDensity(float density, Vector3Int pos)
+        public void SetDensity(float density, Vector3 worldPosition)
         {
+            Vector3 densityWorldPosition = worldPosition.RoundToNearestX(voxelScale);
+
             for (int i = 0; i < 8; i++)
             {
-                Vector3Int chunkPos = (pos - LookupTables.CubeCorners[i]).FloorToNearestX(chunkSize);
-                Chunk chunk = GetChunk(chunkPos.x, chunkPos.y, chunkPos.z);
-                Vector3Int localPos = (pos - chunkPos).Mod(chunkSize + 1);
+                Vector3 offsetDensityPosition = (densityWorldPosition - (Vector3)LookupTables.CubeCorners[i] * voxelScale);
+                Vector3 chunkPos = offsetDensityPosition.FloorToNearestX(chunkSize * voxelScale);
+
+                Chunk chunk = GetChunk(chunkPos);
+
+                Vector3Int localPos = ((densityWorldPosition - chunk.transform.position) / voxelScale).Mod((chunkSize + 1)).Floor();
 
                 chunk.SetDensity(density, localPos.x, localPos.y, localPos.z);
             }
